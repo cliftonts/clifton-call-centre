@@ -8,7 +8,7 @@ use warnings;
 #If not found the file is then created, asking the user for the database details.
 
 #Module imports
-use Crypt::PBKDF2;
+use File::HomeDir;
 
 #Initialse variables
 my $dir = ".ccc";
@@ -17,7 +17,10 @@ my $dir = ".ccc";
 
 #Main Program
 
-if (-e "~/.ccc/settings.cfg")
+my $home = File::HomeDir->my_home;
+$home = $home . "/.ccc/settings.cfg";
+
+if (-e $home)
 {
    print "Database already initialised\n";
 } else {
@@ -36,24 +39,13 @@ if (-e "~/.ccc/settings.cfg")
    print "Enter password:- ";
    my $pass = <STDIN>;
    $pass =~ s/[\n\r\f\t]//g;
-
-#Generate secure password for storage
-   my $pbkdf2 = Crypt::PBKDF2->new(
-   	hash_class => 'HMACSHA2',
-	hash_args => {
-		sha_size => 512,
-	},
-    salt_len => 10,
-   );
- 
-   my $hash = $pbkdf2->generate($pass);
-   substr($hash, 0, 0) = 'PASS: ';
+   substr($pass, 0, 0) = 'PASS: ';
 
 #Write data to file
    my $filename = '.ccc/settings.cfg';
    open(my $fh, '>', $filename) or die "Could not open file '$filename' $!";
    print $fh "$dbname\n";
    print $fh "$uname\n";
-   print $fh "$hash\n";
+   print $fh "$pass\n";
    close $fh;
 }
