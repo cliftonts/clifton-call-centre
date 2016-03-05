@@ -9,43 +9,68 @@ use warnings;
 
 #Module imports
 use File::HomeDir;
+use DBI;
 
 #Initialse variables
 my $dir = ".ccc";
+my $home = File::HomeDir->my_home;
+my $dbfile = $home . "/.ccc/ccc.db";
+#$home = $home . "/.ccc/settings.cfg";
+
+#Database connection vars
+my $dsn      = "dbi:SQLite:dbname=$dbfile";
+my $user     = "";
+my $password = "";
+my $dbh = DBI->connect($dsn, $user, $password, {
+   PrintError       => 0,
+   RaiseError       => 1,
+   AutoCommit       => 1,
+   FetchHashKeyName => 'NAME_lc',
+});
+#End of database vars
 
 #Subs
 
 #Main Program
 
-my $home = File::HomeDir->my_home;
-$home = $home . "/.ccc/settings.cfg";
+my $sql = <<'END_SQL';
+CREATE TABLE records (
+  id       INTEGER PRIMARY KEY,
+  business    VARCHAR(100),
+  address1    VARCHAR(100),
+  address2    VARCHAR(100),
+  town        VARCHAR(100),
+  county      VARCHAR(100),
+  postcode    VARCHAR(100),
+  phone1      VARCHAR(100),
+  phone2      VARCHAR(100),
+  title       VARCHAR(100),
+  firstname   VARCHAR(100),
+  surname     VARCHAR(100),
+  email       VARCHAR(100),
+  donotcall   VARCHAR(1)
+)
+END_SQL
+$dbh->do($sql);
 
-if (-e $home)
-{
-   print "Database already initialised\n";
-} else {
-   chdir;
-   mkdir $dir;
+$sql = <<'END_SQL';
+CREATE TABLE notes (
+  id       INTEGER PRIMARY KEY,
+  recid    INTEGER,
+  response VARCHAR(100),
+  comment  VARCHAR(100)
+)
+END_SQL
+$dbh->do($sql);
 
-#Input DB details
-   print "Enter database name:- ";
-   my $dbname = <STDIN>;
-   $dbname =~ s/[\n\r\f\t]//g;
-   substr($dbname, 0, 0) = 'DBNAME: ';
-   print "Enter username:- ";
-   my $uname = <STDIN>;
-   $uname =~ s/[\n\r\f\t]//g;
-   substr($uname, 0, 0) = 'UNAME: ';
-   print "Enter password:- ";
-   my $pass = <STDIN>;
-   $pass =~ s/[\n\r\f\t]//g;
-   substr($pass, 0, 0) = 'PASS: ';
+$sql = <<'END_SQL';
+CREATE TABLE callbacks (
+  id            INTEGER PRIMARY KEY,
+  redid         INTEGER,
+  lastcalled    DATETIME,
+  callback      DATETIME
+)
+END_SQL
+$dbh->do($sql); 
 
-#Write data to file
-   my $filename = '.ccc/settings.cfg';
-   open(my $fh, '>', $filename) or die "Could not open file '$filename' $!";
-   print $fh "$dbname\n";
-   print $fh "$uname\n";
-   print $fh "$pass\n";
-   close $fh;
-}
+$dbh->disconnect;

@@ -5,39 +5,73 @@ use warnings;
 #Data import utility for Clifton Call Centre.
 #Loads data into the database to add to the number of records available for calling.
 
+#At this stage the CSV needs to be formatted precisely to allow import, a later
+#upgrade will allow for picking specific fields out of a larger file or in a different
+#order
+
+#No column headers
+#Columns in following order
+#Company name
+#Address 1
+#Address 2
+#Town
+#County
+#Postcode
+#Phone1
+#Title
+#First name
+#Surname
+#Email
+
 #Module imports
-use File::HomeDir;
+use File::HomeDir; #Used to locate the user's home folder
+use DBI; #Database access module
+use Text::CSV_XS; #For loading the csv data file
 
 #Initialse variables
 my $home = File::HomeDir->my_home;
-$home = $home . "/.ccc/settings.cfg";
-my $pass;
-my $uname;
-my $dbname;
+my $dbfile = $home . "/.ccc/ccc.db";
+
+my @fields; #For csv
+
+my $file = $ARGV[0] or die "Need to get CSV file on the command line\n"; #For csv
+my @data; #For csv
+my $donotcall = 0; #Used to set the donotcall database field
+
+###Database access variables
+my $dsn      = "dbi:SQLite:dbname=$dbfile";
+my $user     = "";
+my $password = "";
+###End of database vars
 
 #Subs
 
 #Main Program
+#Connect to database
+my $dbh = DBI->connect($dsn, $user, $password, {
+   PrintError       => 0,
+   RaiseError       => 1,
+   AutoCommit       => 1,
+   FetchHashKeyName => 'NAME_lc',
+});
 
-#Open settings file and read data. Split header titles from data
-open (MYFILE, $home); 
-while (<MYFILE>) { 
-   chomp; 
-   print substr($_, 0, 7);
-   if (substr($_, 0, 6) eq 'PASS: ') {
-      $pass = substr($_, 6, (length $_)-6);
-   }
-   if (substr($_, 0, 7) eq 'UNAME: ') {
-      $uname = substr($_, 7, (length $_)-7);
-   }
-   if (substr($_, 0, 8) eq 'DBNAME: ') {
-      $dbname = substr($_, 8, (length $_)-8);
-   }
-} 
-close (MYFILE);
+#Load data from CSV one line at a time
+open(my $fh, '<', $file) or die "Can't read file '$file' [$!]\n";
+while (my $line = <$fh>) {
+    chomp $line;
+    my @fields = split(/,/, $line);
+    push @data, \@fields;
+    print "$fields[0] -- $fields[8] $fields[9]\n";
+    $dbh->do('INSERT INTO records (business, address1, address2, town, county, postcode, phone1, phone2, title, firstname, surname, email, donotcall) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    undef,
+    $fields[0], $fields[1], $fields[2], $fields[3], $fields[4], $fields[5], $fields[6], $fields[7], $fields[8], $fields[9], $fields[10], $fields[11], $donotcall);
+}
+
+#$dbh->do('INSERT INTO people (business, address1, address2, town, county, postcode, phone1, phone2, title, firstname, surname, email, donotcall) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+#  undef,
+#  $fields[0], $fields[1], $fields[2], $fields[3], $fields[4], $fields[5], $fields[6], $fields[7], $fields[8], $fields[9], $fields[10], $donotcall);
+
+$dbh->disconnect;
 
 #Temporary code to print read data. This will be removed when the database routines are added.
 print "\n";
-print $pass."\n";
-print $uname."\n";
-print $dbname."\n";
